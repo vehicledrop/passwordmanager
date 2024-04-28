@@ -4,8 +4,7 @@
 add="Add Password"
 get="Get Password"
 exit="Exit"
-gpgname="vehicledrop@gmail.com" #gpgの暗号化に使用するアカウント名
-passfile="password.asc" #gpgファイルのパス名
+passfile="password.asc" #パスワードが保存されるファイル名
 
 echo "パスワードマネージャへようこそ！"
 echo "次の選択肢から入力してください("$add"/"$get"/"$exit")"
@@ -21,6 +20,10 @@ do
         read username
         echo "パスワードを入力してください"
         read password
+        if test -z $gpgname; then #gpgname(gnupgのユーザー名)が入力済みの場合はFalse。入力がまだの場合のみ入力を促す
+            echo "GnuPGのユーザー名を入力してください"
+            read gpgname
+        fi
         if test -f "$passfile"; then #パスワードを保存した暗号化ファイルがあるときの処理(新規作成じゃない時)
             gpgfile=$(gpg -r "$gpgname" -d "$passfile") #暗号化したパスワードファイルを復号化し変数に代入する
             gpgfile="$gpgfile\n$service:$username:$password" #ユーザーが入力した値をパスワードの入った変数に追加する
@@ -30,12 +33,16 @@ do
             gpgfile="$service:$username:$password" #ユーザーの入力したサービス名、ユーザー名、パスワードを保存
             echo "パスワードファイルがない場合の処理：２"
         fi
-        echo "$gpgfile" | gpg -r "$gpgname" -ea >> "$passfile" #変数gpgfile(ユーザーが入力した新規の値を含む)の中身を追記して保存
+        echo -e "$gpgfile" | gpg -r "$gpgname" -ea > "$passfile" #変数gpgfile(ユーザーが入力した新規の値を含む)の中身を追記して保存
         echo "パスワードの追加は成功しました"
         echo "次の選択肢から入力してください("$add"/"$get"/"$exit")"
     elif [ "$answer" = "$get" ]; then #ユーザーの入力したコマンドがGet Passwordの場合の処理
         echo "サービス名を入力してください"
         read service
+        if test -z $gpgname; then #パスワードを保存した暗号化ファイルがあるときの処理(新規作成じゃない時)
+            echo "GnuPGのユーザー名を入力してください"
+            read gpgname
+        fi
         flag=0
         if test -f "$passfile"; then #パスワードファイルがあるか確認(エラー回避目的)
             #gpg -r "$gpgname" -d "$passfile" | 
@@ -46,7 +53,7 @@ do
                     echo "$line" #取得した行全体を出力する
                     flag=1
                 fi
-            done < <(gpg -r "$gpgname" -d "$passfile")
+            done < <(gpg -r "$gpgname" -d "$passfile" | grep "^$service:")
             if [ $flag -eq 0 ]; then
                 echo "そのサービスは登録されていません。：２"
             fi
